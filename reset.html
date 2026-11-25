@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reset Password — PrepPA</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #F8FAFC; color: #1A2535; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card {
+    background: #fff; border: 1px solid #E2E8F0; border-radius: 16px;
+    padding: 32px 28px; max-width: 420px; width: 100%;
+    box-shadow: 0 4px 24px rgba(16, 42, 67, 0.08);
+  }
+  h1 { font-size: 22px; color: #102A43; margin-bottom: 6px; }
+  .sub { font-size: 14px; color: #637187; margin-bottom: 24px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #102A43; margin-bottom: 6px; }
+  input {
+    width: 100%; padding: 12px 14px; font-size: 16px; border: 1px solid #CBD5E1;
+    border-radius: 10px; margin-bottom: 16px; outline: none;
+  }
+  input:focus { border-color: #17A2A4; box-shadow: 0 0 0 3px rgba(23, 162, 164, 0.15); }
+  button {
+    width: 100%; padding: 14px; font-size: 16px; font-weight: 700; color: #fff;
+    background: #17A2A4; border: none; border-radius: 10px; cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .msg { margin-top: 16px; font-size: 14px; line-height: 1.5; border-radius: 10px; padding: 12px 14px; display: none; }
+  .msg.error { display: block; background: #FDECEE; color: #D6434F; }
+  .msg.success { display: block; background: #E6F7F0; color: #1B9D68; }
+  .brand { text-align: center; font-size: 13px; font-weight: 700; color: #17A2A4; letter-spacing: 0.5px; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">PREPPA</div>
+    <h1>Reset your password</h1>
+    <p class="sub">Choose a new password for your PrepPA account, then return to the app and sign in.</p>
+    <form id="form">
+      <label for="pw">New password</label>
+      <input id="pw" type="password" minlength="8" required autocomplete="new-password" placeholder="At least 8 characters" />
+      <label for="pw2">Confirm new password</label>
+      <input id="pw2" type="password" minlength="8" required autocomplete="new-password" placeholder="Repeat it" />
+      <button id="btn" type="submit">Update password</button>
+    </form>
+    <div id="msg" class="msg"></div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://sgdbspsgcxdrzhqnqnxd.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_GTIOpTI0tEiHVPYjdszwcg_MYhXVzVC";
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const msg = document.getElementById("msg");
+  const btn = document.getElementById("btn");
+  const show = (text, kind) => { msg.textContent = text; msg.className = "msg " + kind; };
+
+  // Supabase puts the recovery tokens in the URL hash (#access_token=...&type=recovery)
+  async function establishSession() {
+    const hash = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token");
+    const type = hash.get("type");
+    if (type !== "recovery" || !accessToken) {
+      show("This reset link is invalid or has expired. In the PrepPA app, tap \u201cForgot password?\u201d again to get a fresh email.", "error");
+      document.getElementById("form").style.display = "none";
+      return false;
+    }
+    const { error } = await client.auth.setSession({
+      access_token: accessToken,
+      refresh_token: refreshToken || "",
+    });
+    if (error) {
+      show("This reset link has expired. Please request a new one from the app.", "error");
+      document.getElementById("form").style.display = "none";
+      return false;
+    }
+    return true;
+  }
+
+  document.getElementById("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const pw = document.getElementById("pw").value;
+    const pw2 = document.getElementById("pw2").value;
+    if (pw !== pw2) { show("Passwords don\u2019t match.", "error"); return; }
+    btn.disabled = true; btn.textContent = "Updating\u2026";
+    const { error } = await client.auth.updateUser({ password: pw });
+    if (error) {
+      show(error.message, "error");
+      btn.disabled = false; btn.textContent = "Update password";
+    } else {
+      show("\u2705 Password updated. Return to the PrepPA app and sign in with your new password.", "success");
+      document.getElementById("form").style.display = "none";
+    }
+  });
+
+  establishSession();
+</script>
+</body>
+</html>
